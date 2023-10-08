@@ -471,6 +471,12 @@ namespace PieceTable
 		}
 	}
 
+	internal enum Type
+	{
+		Original,
+		Additional
+	}
+
 	/// <summary>
 	/// バッファー内の範囲を保持する。
 	/// </summary>
@@ -486,12 +492,6 @@ namespace PieceTable
 			Start = start;
 			Length = length;
 		}
-	}
-
-	internal enum Type
-	{
-		Original,
-		Additional
 	}
 
 	/// <summary>
