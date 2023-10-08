@@ -51,8 +51,8 @@ Pieceの保持には双方向リスト(C#ではGenericのLinkedList)を使用。
 		- SearchAndInsertText  
 		テキスト挿入対象のPieceを探し、テキストを挿入する。
 	- Delete  
-	テキストを削除する。 
-	→ 通常の削除と範囲指定して削除を想定。
+	テキストを削除する。  
+	→ 通常の削除と範囲指定して削除を想定。  
 	1文字削除か複数文字削除かで処理を切り替える。  
 	取得文字数が0になったPieceができた際はPiece自体を削除する。
 		- DeleteSingleLetter  
