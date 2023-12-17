@@ -1,109 +1,189 @@
 # PieceTable
-�e�L�X�g�f�[�^���Ǘ����邽�߂̃f�[�^�\���B  
+テキストデータを管理するためのデータ構造。  
 
-���̃R�[�h���͕̂ʃv���W�F�N�g�ŁA�e�L�X�g�G�f�B�^�����삷�邽�߂ɍ쐬�������̂ł��B  
-�t���[�����[�N�̑I���݌v�Ȃǂ������������̂ŁA������̎����̓X�g�b�v���Ă��܂����A  
-���Ȃ��J���č�����̂ŕʂɐ؂�o���Č��J���Ă��܂��B
+このコード自体は別プロジェクトで、テキストエディタを自作するために作成したものです。  
+フレームワークの選定や設計などを見直したいので、そちらの実装はストップしています。    
+テキストデータ用のデータ構造は少し調べるだけでも、PieceTableやGapBufferなどの仕様を見ることができますが、  
+詳細な実装まで公開しているものは少ない印象なので、せっかくなのでこちらで公開しています。  
 
-## PieceTable�ɂ���
-- �e�L�X�g�f�[�^�̌����I�ȑ���Ɏg����f�[�^�\���B  
-	- ���̑��ɗL���Ȃ��̂�GapBuffer��Rope�ȂǁB
-- �V����킸�F�X�ȃe�L�X�g�G�f�B�^�̃f�[�^�ێ��ɍ̗p����Ă���B
-	- VSCode�ō̗p����Ă�����̂�PieceTable�����A  
-	���s�ʒu�������I�Ɏ擾�ł���悤��PieceTree�Ƃ����Ǝ������ɂȂ��Ă���B
+## PieceTableについて
+- テキストデータの効率的な操作に使われるデータ構造。  
+	- その他に有名なものはGapBufferやRopeなど。
+- 新旧問わず色々なテキストエディタのデータ保持に採用されている。
+	- VSCodeで採用されているものもPieceTableだが、  
+	改行位置を効率的に取得できるようにPieceTreeという独自実装になっている。
+#### 配列での管理について
+テキストデータの管理で直感的に思いつくものは、1行1行を配列の1要素で管理する方法だと思います。  
+テキストデータの性質上、頻繁に行を削除したり、途中に文字を追加することになりますが、  
+配列での要素の更新(削除、挿入)の処理速度はO(N)のため、要素数が大量かつ頻繁に更新されるテキストデータとは相性が悪いです。  
 
+## 概要
+PieceTableの仕組みや処理内容について、概要レベルで解説します。  
 
-## �ڍ�
-### ��{�d�l
-- ��{�I�ɕێ�����f�[�^�̓I���W�i���e�L�X�g�A�ǉ��e�L�X�g��Piece�B  
-	- �I���W�i���e�L�X�g�ƒǉ��e�L�X�g��char�̔z��ȂǂŁA  	���ꂼ��A�J�����e�L�X�g�t�@�C���ƁA�ǉ����͂��ꂽ�e�L�X�g��ێ�����B  
-	- Piece�͑���̓x�ɕҏW�����z��ł���A  
-	�ǂ��炩��e�L�X�g����邩�ƁA�ǂ����牽��������邩��ێ�����B
-- �e�L�X�g���擾����ۂ́APiece�ɑ΂����[�v���������s���A  
-�I���W�i���e�L�X�g�ƒǉ��e�L�X�g���Ȃ����킹�Ď擾����B  
-PieceTable�ł̓e�L�X�g�ǉ��ƍ폜��O(1)�A�e�L�X�g�擾��O(N)�̏������x�ɂȂ�B  
-(�e�L�X�g�f�[�^�ŕp�ɂɍs���鑀��͒ǉ��ƍ폜�ł���A�擾�͕ۑ����̂�)
-	- �e�L�X�g���Ǘ�����ۂɒ����I�ɕ����Ԃ̂́A�e�L�X�g��string�ŕێ����A�����z��ŊǗ����邱�ƁB  
-	�������A����ł͎Q�Ƃ�O(1)�����A  
-	�l��ǉ�����ۂɊ����f�[�^�𓮂����K�v������O(N)�ɂȂ��Ă��܂��B  
-	(VSCode�������͔z��ŊǗ����悤�Ƃ��Ă����炵����)
-- ���O�ɑ��삵���ӏ���Piece��ێ�����L���b�V�����A�Ǝ��Ɏ������Ă���B  
-�e�L�X�g��}������ہA�}������T�����߂�Piece�̔z������[�v�����Ŋm�F����K�v�����邪�A  
-�e�L�X�g�̒��ԂɃf�[�^��p�ɂɒǉ�������A�����Ԃ̑���𑱂����Piece�̐��������A  
-�}�����̌����Ɏ��Ԃ�v����\��������B  
-�e�L�X�g�f�[�^�̓����Ƃ��āA�����ӏ����W�����đ��삷��_���������邽�߁A  
-����̓x�ɃL���b�V���Ƃ��Ē��O��Piece��ێ����A���̑O��𑀍삷��ۂ̓L���b�V���𗘗p���邱�ƂŁA  
-���쎞�̃p�t�H�[�}���X�����P���Ă���B  
+### 基本のデータの持ち方
+まず、対象となるテキストデータをCharの配列に変換し、それに対するPieceを作成します。  
+![image](https://github.com/BlueSchnauzer/PieceTable/assets/116731862/66231686-5e38-44a9-8523-b95182884183)
 
-### ����  
-PieceTable.cs�̊e�N���X�Ƃ��̃��\�b�h�̖������ȈՓI�ɋL�ځB  
+このままだと御覧の通り無意味ですが、  
+ここから末尾にテキストの編集を加えた場合は以下のようなデータの持ち方になります。  
+![image](https://github.com/BlueSchnauzer/PieceTable/assets/116731862/2025b1bf-38ae-4582-9b4a-7c41902ec7f9)
+
+(テキストの意味が微妙ですが...)  
+オリジナルのデータと追加したデータを保持しておき、  
+Pieceを使って、どの順番でどのデータを何文字、紐づけるかを判断し最終的なテキストを決定します。  
+ここから末尾にテキストを追加していく場合は、追加テキストにテキストを追加し、  
+対応するPieceのlengthをどんどん伸ばしていきます。  
+
+### データ挿入
+テキストデータの操作では末尾に文字を追加するだけでなく、  
+テキストの途中に文字を追加していくことも頻繁に行われると思います。  
+PieceTableではこの挿入を、Pieceによって管理します。  
+![image](https://github.com/BlueSchnauzer/PieceTable/assets/116731862/70deabe1-7779-475f-8f9a-4fb0c33864e5)
+
+オリジナルや追加のテキストは並び替えたりせずそのままで、Pieceを分割してテキストの挿入を表現します。  
+
+### データ削除
+同様に頻繁に行われる操作として削除がありますが、  
+こちらもオリジナルや追加のテキストは削除せず、Pieceが指す範囲を短くすることで削除を表現します。  
+![image](https://github.com/BlueSchnauzer/PieceTable/assets/116731862/fc15b70a-14d5-40b3-bd9a-60e21612d32b)
+
+### Pieceの構造
+PieceTableの名前の通り、Pieceは最終的なテキストを決定するデータになります。  
+前項までに少し説明した通り、どのタイプのテキストから、何文字分の範囲を取得するかを判断します。  
+
+### 独自に実装した箇所
+#### Pieceのデータ型を双方向リスト(LinkedList)で実装  
+(恐らく仕様として決まっていないため独自実装としています)  
+Pieceの仕様はテキストタイプと範囲を指定するデータを配列で保持する、というものになっていますが、  
+今回は配列ではなく双方向リストを用いて実装しています。  
+以下が相違点になります(C#の仕様での相違点になります)。  
+  - 配列(Array、List)  
+    1. インデックス指定で要素を`O(1)`で取得可能  
+    → データ量に関わらず高速  
+    2. 要素の削除や挿入に`O(N)`の時間が必要  
+    → データ量が増えるほど処理時間が増える  
+    (テキストの中間を1文字削除や1文字追加などをする度に、削除や挿入が必要になるためかなり相性が悪い)  
+  - 双方向リスト(LinkedList)  
+    1. インデックスでの要素指定はできず、`O(N)`のループ処理が必要  
+    → ループの開始地点(先頭から末尾、末尾から先頭、特定箇所から先頭/末尾)を指定することは可能  
+    2. 要素の削除や挿入の時間が`O(1)`  
+    → データ量が増えても処理速度は変わらない  
+    (上記の通り、削除や追加を頻繁に行うことに適している)  
+
+#### 直前の操作箇所をキャッシュとして保持するよう実装
+実際にテキストを入力する際、  
+テキストの先頭ならPieceの先頭に、末尾ならPieceの末尾に、新しいPieceを追加します。  
+![image](https://github.com/BlueSchnauzer/PieceTable/assets/116731862/ba3bd502-04a9-4089-ba14-3ec19e84e068)
+
+先頭もしくは末尾の場合は単純に済みますが、  
+途中に追加する場合、何文字目に入力するかで操作するPieceが変わるため検索を行う必要があります。  
+テキスト長が5000文字で、3000文字目に入力する場合、  
+Pieceの先頭からLengthを加算していき、結果が3000になるPieceを編集もしくは前後にPieceを挿入することになります。  
+![image](https://github.com/BlueSchnauzer/PieceTable/assets/116731862/a69202e9-9f9f-4f53-982b-7d6fb0f0118c)
+
+テキストを操作する際、1文字入力するごとにこの検索処理(ループ処理のため`O(N)`)を行う必要があり、  
+操作が繰り返されPieceの数が大量になっているほど時間がかかるようになります。  
+
+テキストデータの操作が他のデータと異なる点は、  
+編集箇所が偏る点です(色々なところに1文字ずつ入力などではなく、同じ個所に連続して文字を入力する)。  
+そのため各操作での終了時点で、操作したPieceと、操作したテキスト長をキャッシュとして保存します。  
+![image](https://github.com/BlueSchnauzer/PieceTable/assets/116731862/56f744d5-bfe0-469c-b11c-9fd6a465c4fa)
+
+次回の操作が連続した箇所ならキャッシュを利用、そうでなければキャッシュを利用してPieceを検索します。    
+![image](https://github.com/BlueSchnauzer/PieceTable/assets/116731862/eba1fd7d-f77d-4904-80e5-a0b3404e5ad8)
+
+## 詳細
+### 基本仕様
+- 基本的に保持するデータはオリジナルテキスト、追加テキストとPiece。  
+	- オリジナルテキストと追加テキストはcharの配列などで、  
+	それぞれ、開いたテキストファイルと、追加入力されたテキストを保持する。  
+	- Pieceは操作の度に編集される配列であり、  
+	どちらからテキストを取るかと、どこから何文字を取るかを保持する。
+- テキストを取得する際は、Pieceに対しループ処理を実行し、  
+オリジナルテキストと追加テキストをつなぎ合わせて取得する。  
+PieceTableではテキスト追加と削除がO(1)、テキスト取得がO(N)の処理速度になる。  
+(テキストデータで頻繁に行われる操作は追加と削除であり、取得は保存時のみ)
+	- テキストを管理する際に直感的に浮かぶのは、テキストをstringで保持し、それを配列で管理すること。  
+	しかし、これでは参照はO(1)だが、  
+	値を追加する際に既存データを動かす必要がありO(N)になってしまう。  
+	(VSCodeも当初は配列で管理しようとしていたらしいが)
+- 直前に操作した箇所のPieceを保持するキャッシュを、独自に実装している。  
+テキストを挿入する際、挿入個所を探すためにPieceの配列をループ処理で確認する必要があるが、  
+テキストの中間にデータを頻繁に追加したり、長期間の操作を続けるとPieceの数が増え、  
+挿入個所の検索に時間を要する可能性がある。  
+テキストデータの特徴として、同じ箇所を集中して操作する点が挙げられるため、  
+操作の度にキャッシュとして直前のPieceを保持し、その前後を操作する際はキャッシュを利用することで、  
+操作時のパフォーマンスを改善している。  
+
+### 実装  
+PieceTable.csの各クラスとそのメソッドの役割を簡易的に記載。  
 
 - PieceTable  
-PieceTable�̊e�f�[�^�Ƒ���p�̃��\�b�h��ێ��B  
-Piece�̕ێ��ɂ͑o�������X�g(C#�ł�Generic��LinkedList)���g�p�B  
-�ǉ��ƍ폜�������ŁA�Q�Ƃ��ᑬ�ȃf�[�^�\���B
+PieceTableの各データと操作用のメソッドを保持。  
+Pieceの保持には双方向リスト(C#ではGenericのLinkedList)を使用。  
+追加と削除が高速で、参照が低速なデータ構造。
 	- Insert  
-	�e�L�X�g��}������B  
-	�� �ʏ�̓��� + �y�[�X�g�Ȃǂ�z��B  
-	�A�����đ��삵�Ă���ꍇ(�����āu�����������v�Ȃǂƃ^�C�v������)�́A  
-	Piece��1�Ŏ擾���镶�����𑝂₷�悤�ɂ���B  
-	(�P����Piece��5����Piece�����������Ă��܂��p�t�H�[�}���X�������邽��)
+	テキストを挿入する。  
+	→ 通常の入力 + ペーストなどを想定。  
+	連続して操作している場合(続けて「あいうえお」などとタイプした時)は、  
+	Pieceは1個で取得する文字数を増やすようにする。  
+	(単純にPieceを5個作るとPieceが増えすぎてしまいパフォーマンスが下がるため)
 		- SearchAndInsertText  
-		�e�L�X�g�}���Ώۂ�Piece��T���A�e�L�X�g��}������B
+		テキスト挿入対象のPieceを探し、テキストを挿入する。
 	- Delete  
-	�e�L�X�g���폜����B  
-	�� �ʏ�̍폜�Ɣ͈͎w�肵�č폜��z��B  
-	1�����폜�����������폜���ŏ�����؂�ւ���B  
-	�擾��������0�ɂȂ���Piece���ł����ۂ�Piece���̂��폜����B
+	テキストを削除する。  
+	→ 通常の削除と範囲指定して削除を想定。  
+	1文字削除か複数文字削除かで処理を切り替える。  
+	取得文字数が0になったPieceができた際はPiece自体を削除する。
 		- DeleteSingleLetter  
-		�e�L�X�g��1�����폜����B  
-		�� �ʏ�̍폜(BS��Delete)��z��B
+		テキストを1文字削除する。  
+		→ 通常の削除(BSとDelete)を想定。
 		- DeleteMultipleLetters  
-		�e�L�X�g�𕡐������폜����B  
-		�� �͈͍폜(�͈͑I������BS��Delete)��z��B  
-		���������폜�̏ꍇ�́APiece���܂����\��������(100�����폜�ŁA10�����w���Piece�������Ȃ�)�B  
-		�폜������Piece�ɑ΂����s���邽�߁A  
-		�폜���镶���������炵�āAPiece���ύX���Ȃ���ōċA�ŕ�������s����B
+		テキストを複数文字削除する。  
+		→ 範囲削除(範囲選択してBSやDelete)を想定。  
+		複数文字削除の場合は、Pieceをまたぐ可能性がある(100文字削除で、10文字指定のPieceが複数個など)。  
+		削除処理はPieceに対し実行するため、  
+		削除する文字数を減らして、Pieceも変更しながらで再帰で複数回実行する。
 	- GetPieceAndPosition  
-	(Insert�܂���Delete���Ɏ��s)  
-	����ʒu�ƃe�L�X�g�����r���āA�ړI��Piece���ŒZ�Ō����ł��郁�\�b�h���ĂԁB  
-	(�e�L�X�g�S�̂�5000�����ŁA����ʒu��1000�����ڂȂ�SearchFromForward()�����s)
+	(InsertまたはDelete時に実行)  
+	操作位置とテキスト長を比較して、目的のPieceを最短で検索できるメソッドを呼ぶ。  
+	(テキスト全体が5000文字で、操作位置が1000文字目ならSearchFromForward()を実行)
 	- SearchFromForward  
-	Piece�̔z���擪���猟�����A�����Ɉ�v����Piece��T���B
+	Pieceの配列を先頭から検索し、条件に一致するPieceを探す。
 	- SearchFromBackward  
-	Piece�̔z��𖖔����猟�����A�����Ɉ�v����Piece��T���B
+	Pieceの配列を末尾から検索し、条件に一致するPieceを探す。
 	- SearchFromCache  
-	�L���b�V������Piece����擪�A�܂��͖����Ɍ�������Piece�̔z����������A  
-	�����Ɉ�v����Piece��T���B
+	キャッシュしたPieceから先頭、または末尾に向かってPieceの配列を検索し、  
+	条件に一致するPieceを探す。
 	- SplitPiece  
-	(�e�L�X�g�f�[�^�̒��Ԃ�ҏW����ۂɎ��s)  
-	Piece�𕪊�����B
+	(テキストデータの中間を編集する際に実行)  
+	Pieceを分割する。
 	- GetAllText  
-	Piece�ɑ΂����[�v�������s���A�e�L�X�g���擾����B
+	Pieceに対しループ処理を行い、テキストを取得する。
 - Piece  
-�I���W�i��/�ǉ��e�L�X�g�̂ǂ��炩��e�L�X�g����邩�ƁA  
-Span(�擾����e�L�X�g��)��ێ�����B
+オリジナル/追加テキストのどちらからテキストを取るかと、  
+Span(取得するテキスト数)を保持する。
 - Span  
-�ǂݎ�镶�������w�肷��B
+読み取る文字数を指定する。
 - EditingCache  
-���O�ɑ��삵��Piece�ƁA���̃e�L�X�g�ʒu��ێ�����B  
-�e�L�X�g�f�[�^�͓����ӏ����W���I�ɑ��삷�邽�߁AInsert��Delete�ł͂܂����̃L���b�V�����m�F���đ��삷��B
+直前に操作したPieceと、そのテキスト位置を保持する。  
+テキストデータは同じ箇所を集中的に操作するため、InsertとDeleteではまずこのキャッシュを確認して操作する。
 
-## ���P���K�v�ȓ_
-- Undo/Redo������������  
-PieceTable�̓e�L�X�g��Immutable�ɕێ����邽�߁A���̓_�ł͑���̂�蒼���͎������₷���B  
-��������ɂ́A�e����(�e�L�X�g�}����폜�Ȃ�)�Ƒ���ӏ����A  
-�����Ƃ��ĕێ�����Undo/Redo�ɉ��������삪�K�v�B  
-- �ŏI�I�ȃe�L�X�g���擾����ۂɁA�S�̂���邵�����@�������B  
-�ɒ[�Ɍ����΁A1�������삵����Ƀe�L�X�g���擾����ꍇ�ł��A�e�L�X�g�S�̂��擾����K�v������B  
-���̂��߃e�L�X�g�𑀍삷�鏈��(�}�[�N�_�E���ɕϊ���X�^�C����������ȂǁH)���A�v���P�[�V�����Ƃ��Ď�������ہA  
-�p�t�H�[�}���X�ʂŕs���ȂƂ���ł͂���B
+## 改善が必要な点
+- Undo/Redo処理が未実装  
+PieceTableはテキストをImmutableに保持するため、その点では操作のやり直しは実装しやすい。  
+実装するには、各操作(テキスト挿入や削除など)と操作箇所を、  
+履歴として保持してUndo/Redoに応じた操作が必要。  
+- 最終的なテキストを取得する際に、全体を取るしか方法が無い。  
+極端に言えば、1文字操作した後にテキストを取得する場合でも、テキスト全体を取得する必要がある。  
+そのためテキストを操作する処理(マークダウンに変換やスタイルかけたりなど？)をアプリケーションとして実装する際、  
+パフォーマンス面で不安なところではある。
 
-## �Q�l
+## 参考
 - [Piece Table - Wikipedia](https://en.wikipedia.org/wiki/Piece_table)
 - [Text Buffer Reimplementation - VSCode Blog](https://code.visualstudio.com/blogs/2018/03/23/text-buffer-reimplementation)
 - [piece-table - Darren Burns](https://darrenburns.net/posts/piece-table/)
 - [Text Editor Data Structures - invoke::thought()](https://cdacamar.github.io/data%20structures/algorithms/benchmarking/text%20editors/c++/editor-data-structures/)
 - [Piece Chains - Catch22](https://www.catch22.net/tuts/neatpad/piece-chains/)
-- [�e�L�X�g�G�f�B�^�Ŏg��ꂪ���ȃf�[�^�\�� Piece Table �̊T�v�Ǝ��� - A Memorandum](https://blog1.mammb.com/entry/2022/09/07/224202)
-- [�yC++�z�e�L�X�g�G�f�B�^�̃o�b�t�@ �f�[�^�\���E�A���S���Y���y��P��z - TECH PROjin](https://tech.pjin.jp/blog/2020/11/16/buffer-1)
+- [テキストエディタで使われがちなデータ構造 Piece Table の概要と実装 - A Memorandum](https://blog1.mammb.com/entry/2022/09/07/224202)
+- [【C++】テキストエディタのバッファ データ構造・アルゴリズム【第１回】 - TECH PROjin](https://tech.pjin.jp/blog/2020/11/16/buffer-1)
