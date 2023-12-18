@@ -93,6 +93,8 @@ Pieceの先頭からLengthを加算していき、結果が3000になるPieceを
 ![image](https://github.com/BlueSchnauzer/PieceTable/assets/116731862/eba1fd7d-f77d-4904-80e5-a0b3404e5ad8)
 
 ## 詳細
+上記の概要および各メソッドの動きをテキストでまとめたものになります。  
+
 ### 基本仕様
 - 基本的に保持するデータはオリジナルテキスト、追加テキストとPiece。  
 	- オリジナルテキストと追加テキストはcharの配列などで、  
